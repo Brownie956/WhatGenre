@@ -4,21 +4,14 @@
 * and handles posting of file to server*/
 package com.cfbrownweb.whatgenre;
 
-import android.media.AudioFormat;
 import android.media.MediaPlayer;
-import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
-import android.provider.MediaStore;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
@@ -40,7 +33,7 @@ public class MainActivity extends AppCompatActivity {
     private MediaPlayer player;
     private static TextView instruction;
     private static ImageButton recBtn;
-    private long recordLength = 1000;
+    private long recordLength = 10000;
     private static String genre = null;
     private final UploadHandler uploadHandler = new UploadHandler();
 
@@ -150,62 +143,6 @@ public class MainActivity extends AppCompatActivity {
     private void stopPlaying() {
         player.release();
         player = null;
-    }
-
-    public void anotherRecord(View view){
-        final RecordHandler recordHandler = new RecordHandler();
-
-        Runnable r = new Runnable() {
-            @Override
-            public void run() {
-                ExtAudioRecorder recorder = new ExtAudioRecorder(true, MediaRecorder.AudioSource.MIC, 44100, AudioFormat.CHANNEL_IN_STEREO, AudioFormat.ENCODING_PCM_16BIT);
-                recorder.setOutputFile(getApplicationContext().getCacheDir().getAbsolutePath() + "/recording.wav");
-                recorder.prepare();
-                recorder.start();
-                long endTime = System.currentTimeMillis() + 10000;
-                recordHandler.sendEmptyMessage(recordHandler.RECORDING);
-
-                while(System.currentTimeMillis() <= endTime){}
-                recorder.stop();
-                recordHandler.sendEmptyMessage(recordHandler.STOPRECORDING);
-            }
-        };
-
-        Thread thread = new Thread(r);
-        thread.start();
-    }
-
-    public void yetAnotherRecord(View view){
-        final RecordHandler recordHandler = new RecordHandler();
-
-        Runnable r = new Runnable() {
-            @Override
-            public void run() {
-                MediaRecorder recorder = new MediaRecorder();
-                recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-                recorder.setOutputFile(getApplicationContext().getCacheDir().getAbsolutePath() + "/recording.amr");
-                recorder.setOutputFormat(MediaRecorder.OutputFormat.AMR_NB);
-                recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
-
-                try{
-                    recorder.prepare();
-                }
-                catch (IOException e){
-                    //TODO handle exception
-                }
-
-                recorder.start();
-                long endTime = System.currentTimeMillis() + 10000;
-                recordHandler.sendEmptyMessage(recordHandler.RECORDING);
-
-                while(System.currentTimeMillis() <= endTime){}
-                recorder.stop();
-                recordHandler.sendEmptyMessage(recordHandler.STOPRECORDING);
-            }
-        };
-
-        Thread thread = new Thread(r);
-        thread.start();
     }
 
     public int uploadFile(String sourceFileUri) {
