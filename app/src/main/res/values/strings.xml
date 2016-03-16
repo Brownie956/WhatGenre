@@ -5,4 +5,6 @@
     <string name="title_activity_genre">Predicted Genre</string>
     <string name="predicted_genre_heading">This audio track sounds like the genre:</string>
     <string name="default_genre">Unknown Genre</string>
+    <string name="listening_prompt">Listening&#8230;</string>
+    <string name="calculating_prompt">Calculating&#8230;</string>
 </resources>

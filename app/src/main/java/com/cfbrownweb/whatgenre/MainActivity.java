@@ -36,6 +36,8 @@ public class MainActivity extends AppCompatActivity {
     private static ImageButton recBtn;
     private long recordLength = 10000;
     private static String genre = null;
+    private static String rec_prompt = null;
+    private static String calc_prompt = null;
 
     private final static int RECORDING = 0;
     private final static int STOPRECORDING = 1;
@@ -58,11 +60,11 @@ public class MainActivity extends AppCompatActivity {
 
             switch (msg.what){
                 case RECORDING:
-                    instruction.setText("Listening...");
+                    instruction.setText(rec_prompt);
                     recBtn.setEnabled(false);
                     break;
                 case STOPRECORDING:
-                    instruction.setText("Calculating Genre");
+                    instruction.setText(calc_prompt);
                     break;
                 case STOPCALCULATING:
                     instruction.setText(origText);
@@ -86,6 +88,9 @@ public class MainActivity extends AppCompatActivity {
 
         uploadFilePath = getApplicationContext().getCacheDir().getAbsolutePath() + "/";
         uploadFileName = "recording.wav";
+
+        rec_prompt = getString(R.string.listening_prompt);
+        calc_prompt = getString(R.string.calculating_prompt);
     }
 
     public void record(View view){
