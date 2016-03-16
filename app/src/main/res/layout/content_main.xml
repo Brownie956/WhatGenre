@@ -19,7 +19,7 @@
         android:layout_centerVertical="true"
         android:layout_centerHorizontal="true"
         android:src="@drawable/logo"
-        android:background="@android:color/white"
+        android:background="@android:color/transparent"
         android:scaleType="fitXY"
         android:onClick="record"/>
 

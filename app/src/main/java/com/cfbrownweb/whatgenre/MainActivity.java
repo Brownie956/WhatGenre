@@ -1,3 +1,7 @@
+/*Author: Chris Brown
+* Date: 16/03/2016
+* Description: Launcher activity class. Allows the user to record audio
+* and handles posting of file to server*/
 package com.cfbrownweb.whatgenre;
 
 import android.media.AudioFormat;
@@ -18,20 +22,42 @@ import android.view.MenuItem;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
+import org.apache.commons.io.IOUtils;
+
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 
 public class MainActivity extends AppCompatActivity {
 
     private final static String TAG = "cfbrownweb";
 
     private MediaPlayer player;
-    private TextView instruction;
-    private ImageButton recBtn;
+    private static TextView instruction;
+    private static ImageButton recBtn;
+    private long recordLength = 1000;
+    private static String genre = null;
+    private final UploadHandler uploadHandler = new UploadHandler();
 
-    private final int RECORDING = 0;
-    private final int STOPRECORDING = 1;
+    int serverResponseCode = 0;
 
-    private final Handler handler = new Handler(){
+    private final String upLoadServerUri = "http://cfbrownweb.ngrok.io/whatgenre/uploadaudio.php";
+
+    /**********  File Path *************/
+    private String uploadFilePath = null;
+    private String uploadFileName = null;
+
+    static class RecordHandler extends Handler {
+
+        private final int RECORDING = 0;
+        private final int STOPRECORDING = 1;
+        private String origText = instruction.getText().toString();
+
         @Override
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
@@ -42,14 +68,24 @@ public class MainActivity extends AppCompatActivity {
                     recBtn.setEnabled(false);
                     break;
                 case STOPRECORDING:
-                    instruction.setText(getString(R.string.instruction));
+                    instruction.setText(origText);
                     recBtn.setEnabled(true);
                     break;
                 default:
                     //nothing
             }
         }
-    };
+    }
+
+    static class UploadHandler extends Handler {
+
+        @Override
+        public void handleMessage(Message msg) {
+            super.handleMessage(msg);
+
+            instruction.setText(genre);
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,9 +96,14 @@ public class MainActivity extends AppCompatActivity {
 
         instruction = (TextView) findViewById(R.id.instruction);
         recBtn = (ImageButton) findViewById(R.id.record_btn);
+
+        uploadFilePath = getApplicationContext().getCacheDir().getAbsolutePath() + "/";
+        uploadFileName = "recording.wav";
     }
 
     public void record(View view){
+
+        final RecordHandler recordHandler = new RecordHandler();
 
         //Listen for audio
         Runnable r = new Runnable() {
@@ -71,12 +112,13 @@ public class MainActivity extends AppCompatActivity {
                 WavSoundRecorder recorder = new WavSoundRecorder(getApplicationContext().getCacheDir().getAbsolutePath());
                 Log.i(TAG, "Recorder object made");
                 recorder.startRecording();
-                long endTime = System.currentTimeMillis() + 10000;
-                handler.sendEmptyMessage(RECORDING);
+                long endTime = System.currentTimeMillis() + recordLength;
+                recordHandler.sendEmptyMessage(recordHandler.RECORDING);
 
                 while(System.currentTimeMillis() <= endTime){}
                 recorder.stopRecording();
-                handler.sendEmptyMessage(STOPRECORDING);
+                recordHandler.sendEmptyMessage(recordHandler.STOPRECORDING);
+                uploadFile(uploadFilePath + uploadFileName);
             }
         };
 
@@ -111,6 +153,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void anotherRecord(View view){
+        final RecordHandler recordHandler = new RecordHandler();
+
         Runnable r = new Runnable() {
             @Override
             public void run() {
@@ -119,11 +163,11 @@ public class MainActivity extends AppCompatActivity {
                 recorder.prepare();
                 recorder.start();
                 long endTime = System.currentTimeMillis() + 10000;
-                handler.sendEmptyMessage(RECORDING);
+                recordHandler.sendEmptyMessage(recordHandler.RECORDING);
 
                 while(System.currentTimeMillis() <= endTime){}
                 recorder.stop();
-                handler.sendEmptyMessage(STOPRECORDING);
+                recordHandler.sendEmptyMessage(recordHandler.STOPRECORDING);
             }
         };
 
@@ -132,6 +176,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void yetAnotherRecord(View view){
+        final RecordHandler recordHandler = new RecordHandler();
+
         Runnable r = new Runnable() {
             @Override
             public void run() {
@@ -150,15 +196,113 @@ public class MainActivity extends AppCompatActivity {
 
                 recorder.start();
                 long endTime = System.currentTimeMillis() + 10000;
-                handler.sendEmptyMessage(RECORDING);
+                recordHandler.sendEmptyMessage(recordHandler.RECORDING);
 
                 while(System.currentTimeMillis() <= endTime){}
                 recorder.stop();
-                handler.sendEmptyMessage(STOPRECORDING);
+                recordHandler.sendEmptyMessage(recordHandler.STOPRECORDING);
             }
         };
 
         Thread thread = new Thread(r);
         thread.start();
+    }
+
+    public int uploadFile(String sourceFileUri) {
+
+        String fileName = sourceFileUri;
+
+        HttpURLConnection conn = null;
+        DataOutputStream dos = null;
+        String lineEnd = "\r\n";
+        String twoHyphens = "--";
+        String boundary = "*****";
+        int bytesRead, bytesAvailable, bufferSize;
+        byte[] buffer;
+        int maxBufferSize = 1024 * 1024; //TODO set to audio file size
+        File sourceFile = new File(sourceFileUri);
+
+        if (!sourceFile.isFile()) {
+            Log.e("uploadFile", "Source File not exist :"
+                    + uploadFilePath + "" + uploadFileName);
+
+            return 0;
+        }
+        else {
+            try {
+                // open a URL connection to the Servlet
+                FileInputStream fileInputStream = new FileInputStream(sourceFile);
+                URL url = new URL(upLoadServerUri);
+
+                // Open a HTTP  connection to  the URL
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setDoInput(true); // Allow Inputs
+                conn.setDoOutput(true); // Allow Outputs
+                conn.setUseCaches(false); // Don't use a Cached Copy
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Connection", "Keep-Alive");
+                conn.setRequestProperty("ENCTYPE", "multipart/form-data");
+                conn.setRequestProperty("Content-Type", "multipart/form-data;boundary=" + boundary);
+                conn.setRequestProperty("uploaded_file", fileName);
+
+                dos = new DataOutputStream(conn.getOutputStream());
+
+                dos.writeBytes(twoHyphens + boundary + lineEnd);
+                dos.writeBytes("Content-Disposition: form-data; name=\"uploaded_file\";filename=" + fileName + "\"" + lineEnd);
+                dos.writeBytes(lineEnd);
+
+                // create a buffer of  maximum size
+                bytesAvailable = fileInputStream.available();
+
+//                bufferSize = Math.min(bytesAvailable, maxBufferSize);
+                bufferSize = bytesAvailable;
+                buffer = new byte[bufferSize];
+
+                // read file and write it into form...
+                bytesRead = fileInputStream.read(buffer, 0, bufferSize);
+
+                while (bytesRead > 0) {
+                    dos.write(buffer, 0, bufferSize);
+                    bytesAvailable = fileInputStream.available();
+//                    bufferSize = Math.min(bytesAvailable, maxBufferSize);
+                    bufferSize = bytesAvailable;
+                    bytesRead = fileInputStream.read(buffer, 0, bufferSize);
+
+                }
+
+                // send multipart form data necesssary after file data...
+                dos.writeBytes(lineEnd);
+                dos.writeBytes(twoHyphens + boundary + twoHyphens + lineEnd);
+
+                // Responses from the server (code and message)
+                serverResponseCode = conn.getResponseCode();
+                String serverResponseMessage = conn.getResponseMessage();
+
+                Log.i("uploadFile", "HTTP Response is : "
+                        + serverResponseMessage + ": " + serverResponseCode);
+
+                if(serverResponseCode == 200){
+                    //TODO Success, give the user the response genre
+                    InputStream in = conn.getInputStream();
+                    String encoding = conn.getContentEncoding();
+                    encoding = encoding == null ? "UTF-8" : encoding;
+                    genre = IOUtils.toString(in, encoding);
+                    uploadHandler.sendEmptyMessage(0);
+                }
+
+                //close the streams //
+                fileInputStream.close();
+                dos.flush();
+                dos.close();
+
+            } catch (MalformedURLException ex) {
+                ex.printStackTrace();
+                Log.e("Upload file to server", "error: " + ex.getMessage(), ex);
+            } catch (Exception e) {
+                e.printStackTrace();
+                Log.e("Upload server exception", "Exception : " + e.getMessage(), e);
+            }
+            return serverResponseCode;
+        } // End else block
     }
 }

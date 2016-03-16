@@ -1,3 +1,6 @@
+/*Code taken from the following:
+*http://www.edumobile.org/android/audio-recording-in-wav-format-in-android-programming/
+*Description: An audio recorder class that stores the output in a .wav format */
 package com.cfbrownweb.whatgenre;
 
 import java.io.File;
