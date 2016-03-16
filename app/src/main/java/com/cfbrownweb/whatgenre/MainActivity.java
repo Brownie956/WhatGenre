@@ -4,6 +4,7 @@
 * and handles posting of file to server*/
 package com.cfbrownweb.whatgenre;
 
+import android.content.Intent;
 import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.os.Handler;
@@ -35,9 +36,12 @@ public class MainActivity extends AppCompatActivity {
     private static ImageButton recBtn;
     private long recordLength = 10000;
     private static String genre = null;
-    private final UploadHandler uploadHandler = new UploadHandler();
 
-    int serverResponseCode = 0;
+    private final static int RECORDING = 0;
+    private final static int STOPRECORDING = 1;
+    private final static int STOPCALCULATING = 2;
+
+    private static int serverResponseCode = 0;
 
     private final String upLoadServerUri = "http://cfbrownweb.ngrok.io/whatgenre/uploadaudio.php";
 
@@ -46,9 +50,6 @@ public class MainActivity extends AppCompatActivity {
     private String uploadFileName = null;
 
     static class RecordHandler extends Handler {
-
-        private final int RECORDING = 0;
-        private final int STOPRECORDING = 1;
         private String origText = instruction.getText().toString();
 
         @Override
@@ -61,22 +62,15 @@ public class MainActivity extends AppCompatActivity {
                     recBtn.setEnabled(false);
                     break;
                 case STOPRECORDING:
+                    instruction.setText("Calculating Genre");
+                    break;
+                case STOPCALCULATING:
                     instruction.setText(origText);
                     recBtn.setEnabled(true);
                     break;
                 default:
                     //nothing
             }
-        }
-    }
-
-    static class UploadHandler extends Handler {
-
-        @Override
-        public void handleMessage(Message msg) {
-            super.handleMessage(msg);
-
-            instruction.setText(genre);
         }
     }
 
@@ -106,12 +100,12 @@ public class MainActivity extends AppCompatActivity {
                 Log.i(TAG, "Recorder object made");
                 recorder.startRecording();
                 long endTime = System.currentTimeMillis() + recordLength;
-                recordHandler.sendEmptyMessage(recordHandler.RECORDING);
+                recordHandler.sendEmptyMessage(RECORDING);
 
                 while(System.currentTimeMillis() <= endTime){}
                 recorder.stopRecording();
-                recordHandler.sendEmptyMessage(recordHandler.STOPRECORDING);
-                uploadFile(uploadFilePath + uploadFileName);
+                recordHandler.sendEmptyMessage(STOPRECORDING);
+                uploadFile(uploadFilePath + uploadFileName, recordHandler);
             }
         };
 
@@ -145,7 +139,7 @@ public class MainActivity extends AppCompatActivity {
         player = null;
     }
 
-    public int uploadFile(String sourceFileUri) {
+    private int uploadFile(String sourceFileUri, Handler handler) {
 
         String fileName = sourceFileUri;
 
@@ -223,8 +217,13 @@ public class MainActivity extends AppCompatActivity {
                     InputStream in = conn.getInputStream();
                     String encoding = conn.getContentEncoding();
                     encoding = encoding == null ? "UTF-8" : encoding;
+
                     genre = IOUtils.toString(in, encoding);
-                    uploadHandler.sendEmptyMessage(0);
+                    in.close();
+                    Intent genrePageIntent = new Intent(MainActivity.this, GenreActivity.class);
+                    genrePageIntent.putExtra("genre", genre);
+                    startActivity(genrePageIntent);
+                    handler.sendEmptyMessage(STOPCALCULATING);
                 }
 
                 //close the streams //

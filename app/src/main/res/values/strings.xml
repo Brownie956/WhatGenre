@@ -2,4 +2,7 @@
     <string name="app_name">WhatGenre</string>
     <string name="action_settings">Settings</string>
     <string name="instruction">Click the music note to listen and categorise the song</string>
+    <string name="title_activity_genre">Predicted Genre</string>
+    <string name="predicted_genre_heading">This audio track sounds like the genre:</string>
+    <string name="default_genre">Unknown Genre</string>
 </resources>
