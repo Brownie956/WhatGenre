@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">WhatGenre</string>
+    <string name="action_settings">Settings</string>
+    <string name="instruction">Click the music note to listen and categorise the song</string>
+</resources>
