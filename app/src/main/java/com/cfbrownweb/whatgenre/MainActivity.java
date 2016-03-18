@@ -184,7 +184,7 @@ public class MainActivity extends AppCompatActivity {
                 dos = new DataOutputStream(conn.getOutputStream());
 
                 dos.writeBytes(twoHyphens + boundary + lineEnd);
-                dos.writeBytes("Content-Disposition: form-data; name=\"uploaded_file\";filename=" + fileName + "\"" + lineEnd);
+                dos.writeBytes("Content-Disposition: form-data; name=\"uploaded_file\";filename=" + fileName + lineEnd);
                 dos.writeBytes(lineEnd);
 
                 // create a buffer of  maximum size
