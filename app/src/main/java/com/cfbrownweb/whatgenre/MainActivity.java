@@ -4,6 +4,7 @@
 * and handles posting of file to server*/
 package com.cfbrownweb.whatgenre;
 
+import android.content.Context;
 import android.content.Intent;
 import android.media.MediaPlayer;
 import android.os.Bundle;
@@ -42,6 +43,7 @@ public class MainActivity extends AppCompatActivity {
     private final static int RECORDING = 0;
     private final static int STOPRECORDING = 1;
     private final static int STOPCALCULATING = 2;
+    private final static int STOPCALCULATINGERROR = 3;
 
     private static int serverResponseCode = 0;
 
@@ -53,6 +55,11 @@ public class MainActivity extends AppCompatActivity {
 
     static class RecordHandler extends Handler {
         private String origText = instruction.getText().toString();
+        private Context context;
+
+        public RecordHandler(Context context){
+            this.context = context;
+        }
 
         @Override
         public void handleMessage(Message msg) {
@@ -69,6 +76,11 @@ public class MainActivity extends AppCompatActivity {
                 case STOPCALCULATING:
                     instruction.setText(origText);
                     recBtn.setEnabled(true);
+                    break;
+                case STOPCALCULATINGERROR:
+                    instruction.setText(origText);
+                    recBtn.setEnabled(true);
+                    Utils.serverErrorToast(context);
                     break;
                 default:
                     //nothing
@@ -94,28 +106,35 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void record(View view){
+        //Is the user connected to the internet?
+        if(!Utils.isConnected(this)){
+            Utils.netErrorToast(this);
+        }
+        else {
+            final RecordHandler recordHandler = new RecordHandler(this);
 
-        final RecordHandler recordHandler = new RecordHandler();
+            //Listen for audio
+            Runnable r = new Runnable() {
+                @Override
+                public void run() {
+                    //Record audio
+                    WavSoundRecorder recorder = new WavSoundRecorder(getApplicationContext().getCacheDir().getAbsolutePath());
+                    Log.i(TAG, "Recorder object made");
+                    recorder.startRecording();
+                    long endTime = System.currentTimeMillis() + recordLength;
+                    recordHandler.sendEmptyMessage(RECORDING);
 
-        //Listen for audio
-        Runnable r = new Runnable() {
-            @Override
-            public void run() {
-                WavSoundRecorder recorder = new WavSoundRecorder(getApplicationContext().getCacheDir().getAbsolutePath());
-                Log.i(TAG, "Recorder object made");
-                recorder.startRecording();
-                long endTime = System.currentTimeMillis() + recordLength;
-                recordHandler.sendEmptyMessage(RECORDING);
+                    while (System.currentTimeMillis() <= endTime) {
+                    }
+                    recorder.stopRecording();
+                    recordHandler.sendEmptyMessage(STOPRECORDING);
+                    uploadFile(uploadFilePath + uploadFileName, recordHandler);
+                }
+            };
 
-                while(System.currentTimeMillis() <= endTime){}
-                recorder.stopRecording();
-                recordHandler.sendEmptyMessage(STOPRECORDING);
-                uploadFile(uploadFilePath + uploadFileName, recordHandler);
-            }
-        };
-
-        Thread thread = new Thread(r);
-        thread.start();
+            Thread thread = new Thread(r);
+            thread.start();
+        }
     }
 
     public void playback(View view){
@@ -155,7 +174,6 @@ public class MainActivity extends AppCompatActivity {
         String boundary = "*****";
         int bytesRead, bytesAvailable, bufferSize;
         byte[] buffer;
-        int maxBufferSize = 1024 * 1024; //TODO set to audio file size
         File sourceFile = new File(sourceFileUri);
 
         if (!sourceFile.isFile()) {
@@ -170,7 +188,7 @@ public class MainActivity extends AppCompatActivity {
                 FileInputStream fileInputStream = new FileInputStream(sourceFile);
                 URL url = new URL(upLoadServerUri);
 
-                // Open a HTTP  connection to  the URL
+                // Open a HTTP  connection to the URL
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setDoInput(true); // Allow Inputs
                 conn.setDoOutput(true); // Allow Outputs
@@ -189,8 +207,6 @@ public class MainActivity extends AppCompatActivity {
 
                 // create a buffer of  maximum size
                 bytesAvailable = fileInputStream.available();
-
-//                bufferSize = Math.min(bytesAvailable, maxBufferSize);
                 bufferSize = bytesAvailable;
                 buffer = new byte[bufferSize];
 
@@ -200,7 +216,6 @@ public class MainActivity extends AppCompatActivity {
                 while (bytesRead > 0) {
                     dos.write(buffer, 0, bufferSize);
                     bytesAvailable = fileInputStream.available();
-//                    bufferSize = Math.min(bytesAvailable, maxBufferSize);
                     bufferSize = bytesAvailable;
                     bytesRead = fileInputStream.read(buffer, 0, bufferSize);
 
@@ -217,8 +232,7 @@ public class MainActivity extends AppCompatActivity {
                 Log.i("uploadFile", "HTTP Response is : "
                         + serverResponseMessage + ": " + serverResponseCode);
 
-                if(serverResponseCode == 200){
-                    //TODO Success, give the user the response genre
+                if(serverResponseCode >= 200 && serverResponseCode < 400){
                     InputStream in = conn.getInputStream();
                     String encoding = conn.getContentEncoding();
                     encoding = encoding == null ? "UTF-8" : encoding;
@@ -229,6 +243,10 @@ public class MainActivity extends AppCompatActivity {
                     genrePageIntent.putExtra("genre", genre);
                     startActivity(genrePageIntent);
                     handler.sendEmptyMessage(STOPCALCULATING);
+                }
+                else {
+                    //Server error
+                    handler.sendEmptyMessage(STOPCALCULATINGERROR);
                 }
 
                 //close the streams //

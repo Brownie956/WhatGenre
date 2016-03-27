@@ -7,4 +7,6 @@
     <string name="default_genre">Unknown Genre</string>
     <string name="listening_prompt">Listening&#8230;</string>
     <string name="calculating_prompt">Calculating&#8230;</string>
+    <string name="net_fail">No internet connection. Please check your connection and try again</string>
+    <string name="server_error">Oops, Something went wrong. We are looking into it</string>
 </resources>
