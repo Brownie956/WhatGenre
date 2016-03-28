@@ -10,6 +10,10 @@ import android.view.Gravity;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
+
 public abstract class Utils {
 
     public static boolean isConnected(Context context){
@@ -35,5 +39,16 @@ public abstract class Utils {
             toastText.setGravity(Gravity.CENTER);
         }
         serverErrorToast.show();
+    }
+
+    public static int pingURL(String url){
+        try {
+            URL tempUrl = new URL(url);
+            HttpURLConnection conn = (HttpURLConnection) tempUrl.openConnection();
+            return conn.getResponseCode();
+        }
+        catch(Exception e){
+            return 0;
+        }
     }
 }

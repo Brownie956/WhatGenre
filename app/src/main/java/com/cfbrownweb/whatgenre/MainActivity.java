@@ -117,18 +117,26 @@ public class MainActivity extends AppCompatActivity {
             Runnable r = new Runnable() {
                 @Override
                 public void run() {
-                    //Record audio
-                    WavSoundRecorder recorder = new WavSoundRecorder(getApplicationContext().getCacheDir().getAbsolutePath());
-                    Log.i(TAG, "Recorder object made");
-                    recorder.startRecording();
-                    long endTime = System.currentTimeMillis() + recordLength;
-                    recordHandler.sendEmptyMessage(RECORDING);
-
-                    while (System.currentTimeMillis() <= endTime) {
+                    //Check for server error
+                    int responseCode = Utils.pingURL(upLoadServerUri);
+                    if(responseCode < 200 || responseCode >= 400){
+                        //Server error
+                        recordHandler.sendEmptyMessage(STOPCALCULATINGERROR);
                     }
-                    recorder.stopRecording();
-                    recordHandler.sendEmptyMessage(STOPRECORDING);
-                    uploadFile(uploadFilePath + uploadFileName, recordHandler);
+                    else {
+                        //Record audio
+                        WavSoundRecorder recorder = new WavSoundRecorder(getApplicationContext().getCacheDir().getAbsolutePath());
+                        Log.i(TAG, "Recorder object made");
+                        recorder.startRecording();
+                        long endTime = System.currentTimeMillis() + recordLength;
+                        recordHandler.sendEmptyMessage(RECORDING);
+
+                        while (System.currentTimeMillis() <= endTime) {
+                        }
+                        recorder.stopRecording();
+                        recordHandler.sendEmptyMessage(STOPRECORDING);
+                        uploadFile(uploadFilePath + uploadFileName, recordHandler);
+                    }
                 }
             };
 
