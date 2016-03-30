@@ -10,6 +10,7 @@ import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -68,18 +69,17 @@ public class MainActivity extends AppCompatActivity {
             switch (msg.what){
                 case RECORDING:
                     instruction.setText(rec_prompt);
-                    recBtn.setEnabled(false);
                     break;
                 case STOPRECORDING:
                     instruction.setText(calc_prompt);
                     break;
                 case STOPCALCULATING:
                     instruction.setText(origText);
-                    recBtn.setEnabled(true);
+                    enableButton(context, true);
                     break;
                 case STOPCALCULATINGERROR:
                     instruction.setText(origText);
-                    recBtn.setEnabled(true);
+                    enableButton(context, true);
                     Utils.serverErrorToast(context);
                     break;
                 default:
@@ -106,9 +106,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void record(View view){
+        //Disable button to prevent multiple requests being sent
+        enableButton(this, false);
+
         //Is the user connected to the internet?
         if(!Utils.isConnected(this)){
             Utils.netErrorToast(this);
+            enableButton(this, true);
         }
         else {
             final RecordHandler recordHandler = new RecordHandler(this);
@@ -169,6 +173,17 @@ public class MainActivity extends AppCompatActivity {
     private void stopPlaying() {
         player.release();
         player = null;
+    }
+
+    private static void enableButton(Context context, boolean enabled){
+        if(enabled){
+            recBtn.setEnabled(true);
+            recBtn.setImageDrawable(ContextCompat.getDrawable(context, R.drawable.logo));
+        }
+        else {
+            recBtn.setEnabled(false);
+            recBtn.setImageDrawable(ContextCompat.getDrawable(context, R.drawable.logodisabled));
+        }
     }
 
     private int uploadFile(String sourceFileUri, Handler handler) {
